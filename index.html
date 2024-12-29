@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Operations Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+            transition: background-color 0.3s;
+        }
+
+        #encryptionTab { background: #4CAF50; color: white; }
+        #decryptionTab { background: #2196F3; color: white; }
+        #ransomwareTab { background: #9C27B0; color: white; }
+        #existingTab { background: #FF9800; color: white; }
+
+        .tab:hover {
+            opacity: 0.9;
+        }
+
+        .content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #encryptionContent button { background: #4CAF50; }
+        #decryptionContent button { background: #2196F3; }
+        #ransomwareContent button { background: #9C27B0; }
+        #existingContent button { background: #FF9800; }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #1e3c72;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Security Operations Dashboard</h1>
+        </div>
+
+        <div class="tabs">
+            <button class="tab" id="encryptionTab" onclick="showTab('encryption')">Encryption</button>
+            <button class="tab" id="decryptionTab" onclick="showTab('decryption')">Decryption</button>
+            <button class="tab" id="ransomwareTab" onclick="showTab('ransomware')">Ransomware Detection</button>
+            <button class="tab" id="existingTab" onclick="showTab('existing')">Already Exists</button>
+        </div>
+
+        <div id="encryptionContent" class="content active">
+            <div class="form-group">
+                <label>Key Size (bytes)</label>
+                <select id="encryptKeySize">
+                    <option value="16">16 (AES-128)</option>
+                    <option value="24">24 (AES-192)</option>
+                    <option value="32">32 (AES-256)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Encryption Key</label>
+                <input type="text" id="encryptKey" placeholder="Enter encryption key">
+            </div>
+            <div class="form-group">
+                <label>File Path</label>
+                <input type="text" id="encryptPath" placeholder="Enter full file path">
+            </div>
+            <button onclick="handleEncryption()">Encrypt File</button>
+        </div>
+
+        <div id="decryptionContent" class="content">
+            <div class="form-group">
+                <label>Key Size (bytes)</label>
+                <select id="decryptKeySize">
+                    <option value="16">16 (AES-128)</option>
+                    <option value="24">24 (AES-192)</option>
+                    <option value="32">32 (AES-256)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Decryption Key</label>
+                <input type="text" id="decryptKey" placeholder="Enter decryption key">
+            </div>
+            <div class="form-group">
+                <label>File Path</label>
+                <input type="text" id="decryptPath" placeholder="Enter full file path">
+            </div>
+            <button onclick="handleDecryption()">Decrypt File</button>
+        </div>
+
+        <div id="ransomwareContent" class="content">
+            <div class="form-group">
+                <label>Directory Path</label>
+                <input type="text" id="ransomwarePath" placeholder="Enter directory path to monitor">
+            </div>
+            <button onclick="handleRansomwareDetection()">Start Monitoring</button>
+        </div>
+
+        <div id="existingContent" class="content">
+            <div class="form-group">
+                <label>Directory Path</label>
+                <input type="text" id="existingPath" placeholder="Enter directory path to scan">
+            </div>
+            <button onclick="handleExistingCheck()">Scan Directory</button>
+        </div>
+
+        <div id="output"></div>
+        <div class="loading" id="loading">Processing...</div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all content
+            document.querySelectorAll('.content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Show selected content
+            document.getElementById(tabName + 'Content').classList.add('active');
+        }
+
+        function showOutput(message) {
+            const output = document.getElementById('output');
+            output.style.display = 'block';
+            output.innerHTML = message;
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        async function handleEncryption() {
+            const key = document.getElementById('encryptKey').value;
+            const filePath = document.getElementById('encryptPath').value;
+            const keySize = document.getElementById('encryptKeySize').value;
+
+            if (!key || !filePath) {
+                showOutput('Please fill in all fields');
+                return;
+            }
+
+            if (key.length !== parseInt(keySize)) {
+                showOutput(`Key must be exactly ${keySize} bytes long`);
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:5000/api/encrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ key, filePath, keySize })
+                });
+                const data = await response.json();
+                showOutput(data.message || data.error);
+            } catch (error) {
+                showOutput('Error: ' + error.message);
+            }
+            showLoading(false);
+        }
+
+        async function handleDecryption() {
+            const key = document.getElementById('decryptKey').value;
+            const filePath = document.getElementById('decryptPath').value;
+            const keySize = document.getElementById('decryptKeySize').value;
+
+            if (!key || !filePath) {
+                showOutput('Please fill in all fields');
+                return;
+            }
+
+            if (key.length !== parseInt(keySize)) {
+                showOutput(`Key must be exactly ${keySize} bytes long`);
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:5000/api/decrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ key, filePath, keySize })
+                });
+                const data = await response.json();
+                showOutput(data.message || data.error);
+            } catch (error) {
+                showOutput('Error: ' + error.message);
+            }
+            showLoading(false);
+        }
+
+        async function handleRansomwareDetection() {
+            const directory = document.getElementById('ransomwarePath').value;
+            
+            if (!directory) {
+                showOutput('Please enter a directory path');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:5000/api/monitor-ransomware', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ directory })
+                });
+                const data = await response.json();
+                showOutput(data.message || data.error);
+            } catch (error) {
+                showOutput('Error: ' + error.message);
+            }
+            showLoading(false);
+        }
+
+        async function handleExistingCheck() {
+            const directory = document.getElementById('existingPath').value;
+            
+            if (!directory) {
+                showOutput('Please enter a directory path');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('http://localhost:5000/api/check-existing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ directory })
+                });
+                const data = await response.json();
+                showOutput(data.message || data.error);
+            } catch (error) {
+                showOutput('Error: ' + error.message);
+            }
+            showLoading(false);
+        }
+    </script>
+</body>
+</html>
